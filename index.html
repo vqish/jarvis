@@ -1,18 +1,3142 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JARVIS — Personal AI Study Assistant</title>
-    <meta name="description" content="JARVIS: Advanced Personal AI Study Assistant with Hardware Simulator, Study Timetables, Focus Timer, AI Chat, and Quizzes." />
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-teal-500/30 selection:text-teal-200 overflow-x-hidden min-h-screen">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS — AI Personal Study Assistant</title>
+  
+  <!-- Google Fonts: Space Grotesk (Display), Inter (Body), JetBrains Mono (Code/Timers), Press Start 2P (OLED Matrix) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* =========================================================================
+       1. CSS VARIABLES & COLOR PALETTE
+       ========================================================================= */
+    :root {
+      --bg-base: #060913;
+      --bg-surface: #0b1120;
+      --bg-surface-elevated: #111a2e;
+      --bg-surface-glass: rgba(15, 23, 42, 0.75);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(6, 182, 212, 0.35);
+      --border-accent-strong: #06b6d4;
+      
+      --accent-cyan: #06b6d4;
+      --accent-cyan-light: #22d3ee;
+      --accent-cyan-glow: rgba(6, 182, 212, 0.25);
+      --accent-teal: #14b8a6;
+      --accent-amber: #f59e0b;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-blue: #3b82f6;
+
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --text-cyan: #22d3ee;
+
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-oled: 'Press Start 2P', monospace;
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 26px;
+      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 25px -5px rgba(6, 182, 212, 0.25);
+    }
+
+    /* =========================================================================
+       2. RESET & BASE TYPOGRAPHY
+       ========================================================================= */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-cyan);
+    }
+
+    /* Ambient Background Glow */
+    .ambient-glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.07) 0%, rgba(6, 182, 212, 0) 70%);
+      top: -150px;
+      left: 10%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .ambient-glow-2 {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(20, 184, 166, 0.05) 0%, rgba(20, 184, 166, 0) 70%);
+      bottom: -100px;
+      right: 5%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* =========================================================================
+       3. APP SHELL LAYOUT
+       ========================================================================= */
+    .app-container {
+      display: grid;
+      grid-template-columns: 260px 1fr 340px;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 1280px) {
+      .app-container {
+        grid-template-columns: 240px 1fr;
+      }
+      .hardware-sidebar {
+        display: none;
+      }
+      .hardware-sidebar.mobile-open {
+        display: flex;
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 340px;
+        z-index: 100;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+      }
+    }
+
+    @media (max-width: 860px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+      .app-sidebar {
+        display: none;
+      }
+      .app-sidebar.mobile-open {
+        display: flex;
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 260px;
+        z-index: 100;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+      }
+    }
+
+    /* =========================================================================
+       4. LEFT SIDEBAR NAVIGATION
+       ========================================================================= */
+    .app-sidebar {
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 8px 24px 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(15, 23, 42, 0.9));
+      border: 1px solid var(--border-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-cyan-light);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+    }
+    .brand-subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .nav-list {
+      list-style: none;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-item.active {
+      color: var(--text-primary);
+      background: linear-gradient(90deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.02));
+      border-color: rgba(6, 182, 212, 0.4);
+      box-shadow: inset 2px 0 0 var(--accent-cyan);
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.2s ease;
+    }
+
+    .nav-item.active svg {
+      color: var(--accent-cyan);
+      filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.5));
+    }
+
+    .sidebar-footer {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .user-profile-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+      color: #04111d;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+
+    .user-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .user-name {
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-status {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .user-status::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+    }
+
+    /* =========================================================================
+       5. TOP APP BAR
+       ========================================================================= */
+    .main-wrapper {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg-base);
+    }
+
+    .top-bar {
+      height: 64px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(6, 9, 19, 0.85);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mobile-menu-btn, .mobile-hardware-btn {
+      display: none;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 860px) {
+      .mobile-menu-btn { display: flex; }
+    }
+    @media (max-width: 1280px) {
+      .mobile-hardware-btn { display: flex; }
+    }
+
+    .datetime-display {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .datetime-display strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .system-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-accent);
+      background: var(--bg-surface-elevated);
+    }
+
+    /* =========================================================================
+       6. MAIN CONTENT AREA & PAGES
+       ========================================================================= */
+    .content-area {
+      padding: 32px 28px;
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .page {
+      display: none;
+      animation: fadeIn 0.3s ease forwards;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Section Headers */
+    .page-header {
+      margin-bottom: 28px;
+    }
+    .page-title {
+      font-family: var(--font-display);
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+    .page-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.925rem;
+      margin-top: 4px;
+    }
+
+    /* =========================================================================
+       7. CARDS & UI COMPONENTS
+       ========================================================================= */
+    .card {
+      background: var(--bg-surface-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.2s ease, transform 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .card.highlighted {
+      background: linear-gradient(135deg, rgba(17, 26, 46, 0.95), rgba(6, 182, 212, 0.08));
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      font-family: var(--font-sans);
+    }
+    .btn-primary {
+      background: var(--accent-cyan);
+      color: #04111d;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+    }
+    .btn-primary:hover {
+      background: var(--accent-cyan-light);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan-light); border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-rose { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+
+    /* =========================================================================
+       8. DASHBOARD PAGE
+       ========================================================================= */
+    .dashboard-hero {
+      background: linear-gradient(135deg, #0b1329 0%, #070e1e 100%);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .dashboard-hero::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background: radial-gradient(circle at right center, rgba(6, 182, 212, 0.12), transparent 70%);
+      pointer-events: none;
+    }
+    .hero-tag {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .hero-quote {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      max-width: 600px;
+    }
+
+    /* 4 Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 992px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 540px) {
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+
+    .stat-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 12px 0 4px 0;
+    }
+    .stat-desc {
+      font-size: 0.775rem;
+      color: var(--text-secondary);
+    }
+
+    /* Progress Ring */
+    .progress-ring-container {
+      position: relative;
+      width: 52px;
+      height: 52px;
+    }
+    .progress-ring circle {
+      transition: stroke-dashoffset 0.5s ease;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    /* Split Section: Next Session + Timetable + Recommendation */
+    .dashboard-split {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+    @media (max-width: 992px) {
+      .dashboard-split { grid-template-columns: 1fr; }
+    }
+
+    /* Next Session Card */
+    .next-session-box {
+      margin-bottom: 24px;
+      padding: 24px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(6, 182, 212, 0.4);
+    }
+    .next-session-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .next-session-subject {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+    .next-session-topic {
+      font-size: 0.95rem;
+      color: var(--accent-cyan-light);
+      margin-bottom: 16px;
+    }
+    .next-session-meta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    /* Timetable Timeline */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .timeline-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s ease;
+    }
+    .timeline-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .timeline-item.active-slot {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: rgba(6, 182, 212, 0.3);
+    }
+    .timeline-time {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      width: 60px;
+    }
+    .timeline-info {
+      flex: 1;
+      padding: 0 16px;
+    }
+    .timeline-subject {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .timeline-topic {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Suggestion Card */
+    .suggestion-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(15, 23, 42, 0.8));
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .suggestion-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-amber);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .suggestion-text {
+      font-size: 0.875rem;
+      color: #e2e8f0;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    /* =========================================================================
+       9. AI CHAT PAGE
+       ========================================================================= */
+    .chat-layout {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 180px);
+      min-height: 550px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(11, 17, 32, 0.8);
+    }
+    .chat-header-info h3 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .chat-header-info p {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.05em;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      max-width: 80%;
+      animation: fadeIn 0.25s ease;
+    }
+    .message.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    .message.jarvis {
+      align-self: flex-start;
+    }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .message.jarvis .msg-avatar {
+      background: rgba(6, 182, 212, 0.2);
+      border: 1px solid var(--border-accent);
+      color: var(--accent-cyan-light);
+    }
+    .message.user .msg-avatar {
+      background: #0ea5e9;
+      color: #04111d;
+    }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    .message.jarvis .msg-bubble {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: #e2e8f0;
+    }
+    .message.user .msg-bubble {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.25);
+    }
+
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: var(--bg-surface-elevated);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      width: fit-content;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-cyan);
+    }
+    .typing-dot {
+      width: 5px;
+      height: 5px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      animation: typing-bounce 1.4s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing-bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    .chat-input-wrapper {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-subtle);
+      background: rgba(11, 17, 32, 0.95);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .chat-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+    }
+
+    .quick-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 24px;
+      background: rgba(6, 9, 19, 0.5);
+      border-top: 1px solid var(--border-subtle);
+    }
+    .chip {
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .chip:hover {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: var(--border-accent);
+      color: var(--accent-cyan-light);
+    }
+
+    /* =========================================================================
+       10. TIMETABLE PAGE
+       ========================================================================= */
+    .timetable-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .view-toggle {
+      display: flex;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 3px;
+    }
+    .toggle-btn {
+      padding: 6px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .toggle-btn.active {
+      background: var(--accent-cyan);
+      color: #04111d;
+    }
+
+    .timetable-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .timetable-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s ease;
+    }
+    .timetable-card:hover {
+      border-color: rgba(6, 182, 212, 0.4);
+      transform: translateX(4px);
+    }
+    .tt-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .tt-time {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      width: 70px;
+    }
+    .tt-subject {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .tt-topic {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .tt-duration {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .tt-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* =========================================================================
+       11. TASKS PAGE
+       ========================================================================= */
+    .task-filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s ease;
+    }
+    .task-item:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .task-item.completed {
+      opacity: 0.55;
+      background: rgba(11, 17, 32, 0.4);
+    }
+    .task-item.completed .task-title {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    .task-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .custom-checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 2px solid var(--border-accent);
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      color: transparent;
+    }
+    .task-item.completed .custom-checkbox {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+      color: #04111d;
+    }
+    .task-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .task-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    /* =========================================================================
+       12. FOCUS TIMER PAGE
+       ========================================================================= */
+    .focus-wrapper {
+      max-width: 600px;
+      margin: 20px auto;
+      text-align: center;
+    }
+    .timer-ring-container {
+      width: 280px;
+      height: 280px;
+      margin: 0 auto 28px auto;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .timer-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    .timer-bg-circle {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.05);
+      stroke-width: 8;
+    }
+    .timer-progress-circle {
+      fill: none;
+      stroke: var(--accent-cyan);
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 816;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1s linear;
+      filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.5));
+    }
+    .timer-text-wrap {
+      position: relative;
+      z-index: 2;
+    }
+    .timer-display {
+      font-family: var(--font-mono);
+      font-size: 3.8rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+    .timer-subject-tag {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent-cyan-light);
+      margin-top: 4px;
+    }
+    .timer-topic-tag {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .preset-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .preset-btn {
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .preset-btn.active {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.1);
+    }
+
+    .timer-controls {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    /* =========================================================================
+       13. QUIZ PAGE
+       ========================================================================= */
+    .quiz-container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .quiz-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+    }
+    .quiz-progress-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      margin: 16px 0 28px 0;
+      overflow: hidden;
+    }
+    .quiz-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-teal));
+      width: 10%;
+      transition: width 0.3s ease;
+    }
+    .quiz-question-text {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .quiz-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-size: 0.925rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    .quiz-option:hover {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: rgba(6, 182, 212, 0.4);
+    }
+    .quiz-option.correct {
+      background: rgba(16, 185, 129, 0.15) !important;
+      border-color: var(--accent-emerald) !important;
+      color: #6ee7b7;
+    }
+    .quiz-option.incorrect {
+      background: rgba(244, 63, 94, 0.15) !important;
+      border-color: var(--accent-rose) !important;
+      color: #fda4af;
+    }
+    .option-key {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    /* =========================================================================
+       14. NOTES PAGE
+       ========================================================================= */
+    .notes-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      height: calc(100vh - 200px);
+      min-height: 500px;
+    }
+    @media (max-width: 768px) {
+      .notes-layout { grid-template-columns: 1fr; }
+    }
+    .notes-list {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+    }
+    .note-card-item {
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .note-card-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .note-card-item.active {
+      background: rgba(6, 182, 212, 0.1);
+      border-color: rgba(6, 182, 212, 0.4);
+    }
+    .note-item-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .note-item-subject {
+      font-size: 0.7rem;
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+
+    .note-editor {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .note-title-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 8px;
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      outline: none;
+    }
+    .note-content-area {
+      flex: 1;
+      background: transparent;
+      border: none;
+      resize: none;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: #cbd5e1;
+      outline: none;
+    }
+
+    /* =========================================================================
+       15. PROGRESS PAGE
+       ========================================================================= */
+    .progress-chart-card {
+      margin-bottom: 28px;
+    }
+    .bar-chart-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      height: 180px;
+      padding: 20px 10px 0 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .bar-pill {
+      width: 100%;
+      max-width: 44px;
+      background: linear-gradient(180deg, var(--accent-cyan) 0%, rgba(6, 182, 212, 0.2) 100%);
+      border-radius: 6px 6px 2px 2px;
+      transition: height 0.5s ease;
+      position: relative;
+    }
+    .bar-pill:hover {
+      filter: brightness(1.2);
+    }
+    .bar-val {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+    }
+    .bar-day {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .subject-accuracy-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 900px) {
+      .subject-accuracy-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* =========================================================================
+       16. RIGHT-SIDE HARDWARE SIMULATOR (OLED & 3 LEDs)
+       ========================================================================= */
+    .hardware-sidebar {
+      background: #050811;
+      border-left: 1px solid var(--border-subtle);
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .hw-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+    .hw-title {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Physical Device Chassis */
+    .hw-chassis {
+      background: #090e1a;
+      border: 2px solid #1e293b;
+      border-radius: var(--radius-lg);
+      padding: 20px 16px;
+      box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.05), 0 15px 35px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+    .hw-chassis::before {
+      content: 'ESP32-WROOM-32D // I2C 0x3C';
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.55rem;
+      color: #334155;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    /* 128x64 Monochrome OLED Display */
+    .oled-screen-frame {
+      background: #000000;
+      border: 3px solid #111827;
+      border-radius: 8px;
+      padding: 14px 10px;
+      box-shadow: inset 0 0 12px rgba(6, 182, 212, 0.2), 0 4px 10px rgba(0, 0, 0, 0.6);
+      position: relative;
+      overflow: hidden;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    /* CRT Scanlines Overlay */
+    .oled-screen-frame::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.3) 0px,
+        rgba(0, 0, 0, 0.3) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      pointer-events: none;
+    }
+
+    .oled-line-1 {
+      font-family: var(--font-oled);
+      font-size: 0.75rem;
+      color: #38bdf8;
+      text-shadow: 0 0 5px #0284c7;
+      text-align: center;
+      line-height: 1.4;
+      letter-spacing: 0.05em;
+    }
+    .oled-line-2 {
+      font-family: var(--font-oled);
+      font-size: 0.65rem;
+      color: #7dd3fc;
+      text-shadow: 0 0 4px #0284c7;
+      text-align: center;
+      margin: 4px 0;
+      letter-spacing: 0.05em;
+    }
+    .oled-line-3 {
+      font-family: var(--font-oled);
+      font-size: 0.55rem;
+      color: #38bdf8;
+      text-align: center;
+      opacity: 0.85;
+    }
+
+    /* 3 Physical LEDs */
+    .led-bank {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid #1e293b;
+    }
+    .led-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .led-socket {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #111827;
+      border: 2px solid #374151;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .led-diode {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #1f2937;
+      transition: all 0.3s ease;
+    }
+    .led-label {
+      font-family: var(--font-mono);
+      font-size: 0.55rem;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* LED States */
+    .led-red.active {
+      background: #ef4444;
+      box-shadow: 0 0 12px 3px rgba(239, 68, 68, 0.8);
+    }
+    .led-yellow.active {
+      background: #f59e0b;
+      box-shadow: 0 0 12px 3px rgba(245, 158, 11, 0.8);
+      animation: pulse-led 1s infinite alternate;
+    }
+    .led-green.active {
+      background: #10b981;
+      box-shadow: 0 0 12px 3px rgba(16, 185, 129, 0.8);
+    }
+
+    @keyframes pulse-led {
+      0% { opacity: 0.5; filter: brightness(0.8); }
+      100% { opacity: 1; filter: brightness(1.3); }
+    }
+
+    /* Hardware Action Buttons */
+    .hw-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .hw-btn {
+      padding: 6px 10px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      background: #111827;
+      border: 1px solid #374151;
+      color: #94a3b8;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 600;
+    }
+    .hw-btn:hover {
+      background: #1e293b;
+      color: #f8fafc;
+      border-color: #4b5563;
+    }
+
+    /* =========================================================================
+       17. TOAST NOTIFICATIONS
+       ========================================================================= */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .toast {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-accent);
+      color: var(--text-primary);
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      font-size: 0.825rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: slideInUp 0.3s ease forwards;
+      pointer-events: auto;
+    }
+    @keyframes slideInUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow Elements -->
+  <div class="ambient-glow"></div>
+  <div class="ambient-glow-2"></div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Main Grid App Shell -->
+  <div class="app-container">
+
+    <!-- =====================================================================
+         1. LEFT SIDEBAR NAVIGATION
+         ===================================================================== -->
+    <aside class="app-sidebar" id="sidebar">
+      <div>
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">JARVIS</div>
+            <div class="brand-subtitle">AI Study System</div>
+          </div>
+        </div>
+
+        <ul class="nav-list">
+          <li class="nav-item active" data-page="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Dashboard</span>
+          </li>
+          <li class="nav-item" data-page="chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>AI Chat</span>
+          </li>
+          <li class="nav-item" data-page="timetable">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span>Timetable</span>
+          </li>
+          <li class="nav-item" data-page="tasks">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            <span>Tasks</span>
+          </li>
+          <li class="nav-item" data-page="focus">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Focus Timer</span>
+          </li>
+          <li class="nav-item" data-page="quiz">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>Active Quiz</span>
+          </li>
+          <li class="nav-item" data-page="notes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Study Notes</span>
+          </li>
+          <li class="nav-item" data-page="progress">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Progress</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-footer">
+        <li class="nav-item" data-page="settings" style="list-style: none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Settings</span>
+        </li>
+
+        <div class="user-profile-badge">
+          <div class="user-avatar">AH</div>
+          <div class="user-info">
+            <div class="user-name" id="userNameDisplay">Alex Henderson</div>
+            <div class="user-status">Student Online</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- =====================================================================
+         2. MAIN WORKSPACE & TOP BAR
+         ===================================================================== -->
+    <div class="main-wrapper">
+      
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <button class="mobile-menu-btn" id="mobileMenuToggle" title="Toggle Navigation">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          
+          <div class="datetime-display">
+            <span id="dateDisplay">FRIDAY, AUGUST 8, 2026</span>
+            <span style="color: var(--border-subtle);">|</span>
+            <strong id="timeDisplay">10:42:00 AM</strong>
+          </div>
+        </div>
+
+        <div class="top-bar-right">
+          <div class="system-status-pill">
+            <span class="status-dot"></span>
+            <span id="sysStatusText">JARVIS ONLINE</span>
+          </div>
+
+          <button class="mobile-hardware-btn" id="mobileHardwareToggle" title="Toggle Hardware">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+          </button>
+
+          <button class="icon-btn" onclick="showToast('No new alerts. All systems nominal.')" title="Notifications">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Views -->
+      <main class="content-area">
+
+        <!-- ===============================================================
+             PAGE 1: DASHBOARD
+             =============================================================== -->
+        <section class="page active" id="page-dashboard">
+          <div class="dashboard-hero">
+            <div class="hero-tag">JARVIS Cognitive Study Core</div>
+            <h1 class="hero-title">GOOD MORNING.</h1>
+            <p class="hero-quote">"Ready when you are. Your primary objective today is completing the Physics Electrostatics review before the midterm."</p>
+          </div>
+
+          <!-- 4 Summary Metrics Cards -->
+          <div class="stats-grid">
+            <div class="card stat-card">
+              <div class="stat-header">
+                <span>Today's Progress</span>
+                <div class="progress-ring-container">
+                  <svg class="progress-ring" width="52" height="52">
+                    <circle cx="26" cy="26" r="20" stroke="rgba(255,255,255,0.06)" stroke-width="4" fill="transparent" />
+                    <circle cx="26" cy="26" r="20" stroke="var(--accent-cyan)" stroke-width="4" fill="transparent" stroke-dasharray="125.6" stroke-dashoffset="35.1" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <div class="stat-value" id="dashProgressVal">72%</div>
+                <div class="stat-desc">Study goal completed</div>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <div class="stat-header">
+                <span>Study Time</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+              <div>
+                <div class="stat-value" id="dashStudyTime">3h 42m</div>
+                <div class="stat-desc">Target: 5h 00m</div>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <div class="stat-header">
+                <span>Tasks</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+              </div>
+              <div>
+                <div class="stat-value" id="dashTaskCount">8 / 11</div>
+                <div class="stat-desc">Completed today</div>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <div class="stat-header">
+                <span>Exam Countdown</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              </div>
+              <div>
+                <div class="stat-value" style="color: var(--accent-amber);">6 DAYS</div>
+                <div class="stat-desc">Physics Midterm</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Split Row: Highlighted Next Session + AI Recommendation -->
+          <div class="dashboard-split">
+            <div>
+              <!-- Large Highlighted Next Session Card -->
+              <div class="next-session-box">
+                <div class="next-session-top">
+                  <span class="badge badge-cyan">NEXT SESSION</span>
+                  <span class="badge badge-amber">URGENT</span>
+                </div>
+                <div class="next-session-subject">PHYSICS</div>
+                <div class="next-session-topic">Electrostatics — Gauss's Law & Flux</div>
+                <div class="next-session-meta">
+                  <span>🕒 10:30 AM — 11:15 AM</span>
+                  <span>⏱️ 45 MINUTES</span>
+                </div>
+                <button class="btn btn-primary" onclick="startFocusFromDashboard('Physics', 'Electrostatics', 45)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  <span>START SESSION</span>
+                </button>
+              </div>
+
+              <!-- Today's Timeline Preview -->
+              <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <h3 style="font-family: var(--font-display); font-size: 1.1rem; font-weight: 700;">Today's Schedule</h3>
+                  <button class="btn btn-sm btn-secondary" onclick="navigateTo('timetable')">View All</button>
+                </div>
+                <div class="timeline" id="dashTimeline">
+                  <!-- Rendered dynamically via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: AI Suggestion Card -->
+            <div style="display: flex; flex-direction: column; gap: 24px;">
+              <div class="card suggestion-card">
+                <div class="suggestion-header">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                  <span>JARVIS SUGGESTS</span>
+                </div>
+                <p class="suggestion-text">
+                  "Your next priority should be <strong>Physics</strong>. You have an upcoming exam in 6 days and your recent active recall quiz accuracy in Electrostatics is at <strong>68%</strong>, which is below your target average."
+                </p>
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn btn-primary btn-sm" onclick="startFocusFromDashboard('Physics', 'Electrostatics', 45)">START PHYSICS</button>
+                  <button class="btn btn-secondary btn-sm" onclick="navigateTo('timetable')">VIEW PLAN</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <h4 style="font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; margin-bottom: 12px;">Active Task Queue</h4>
+                <div id="dashMiniTasks" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Rendered via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 2: AI CHAT
+             =============================================================== -->
+        <section class="page" id="page-chat">
+          <div class="page-header">
+            <h1 class="page-title">AI Study Assistant</h1>
+            <p class="page-subtitle">Interact with JARVIS for schedules, concept explanations, and study directives.</p>
+          </div>
+
+          <div class="chat-layout">
+            <div class="chat-header">
+              <div class="chat-header-info">
+                <h3>JARVIS AI</h3>
+                <p>PERSONAL STUDY ASSISTANT // NEURAL ONLINE</p>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="clearChat()">Clear Chat</button>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+              <!-- Initial Greeting -->
+              <div class="message jarvis">
+                <div class="msg-avatar">J</div>
+                <div class="msg-bubble">
+                  Good morning. You have 4 planned study sessions today. How would you like to proceed?
+                </div>
+              </div>
+              <div class="message user">
+                <div class="msg-avatar">AH</div>
+                <div class="msg-bubble">
+                  What should I study now?
+                </div>
+              </div>
+              <div class="message jarvis">
+                <div class="msg-avatar">J</div>
+                <div class="msg-bubble">
+                  Your next scheduled session is <strong>Physics — Electrostatics</strong> at 10:30 AM. I recommend starting with the Gauss's Law section.
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Suggestions -->
+            <div class="quick-chips">
+              <span class="chip" onclick="sendQuickPrompt('What should I study now?')">What should I study?</span>
+              <span class="chip" onclick="sendQuickPrompt('Show my schedule today')">Show schedule</span>
+              <span class="chip" onclick="sendQuickPrompt('Start a 45 min focus session')">Start focus</span>
+              <span class="chip" onclick="sendQuickPrompt('Quiz me on Physics')">Quiz me</span>
+              <span class="chip" onclick="sendQuickPrompt('How is my study progress?')">Study progress</span>
+            </div>
+
+            <!-- Input Bar -->
+            <form class="chat-input-wrapper" id="chatForm" onsubmit="handleChatSubmit(event)">
+              <input type="text" class="chat-input" id="chatInput" placeholder="Ask JARVIS anything... (e.g. 'what should I study', 'show my schedule')" autocomplete="off" />
+              <button type="button" class="icon-btn" title="Voice Input (Simulated)" onclick="showToast('Voice module listening...')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <span>Send</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 3: TIMETABLE
+             =============================================================== -->
+        <section class="page" id="page-timetable">
+          <div class="page-header">
+            <h1 class="page-title">Master Timetable</h1>
+            <p class="page-subtitle">Organized schedule blocks and daily study milestones.</p>
+          </div>
+
+          <div class="timetable-controls">
+            <div class="view-toggle">
+              <button class="toggle-btn active" id="viewDayBtn" onclick="setTimetableView('DAY')">DAY</button>
+              <button class="toggle-btn" id="viewWeekBtn" onclick="setTimetableView('WEEK')">WEEK</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openAddSessionModal()">+ ADD SESSION</button>
+          </div>
+
+          <div class="timetable-grid" id="timetableList">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 4: TASKS
+             =============================================================== -->
+        <section class="page" id="page-tasks">
+          <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <h1 class="page-title">Tasks & Assignments</h1>
+              <p class="page-subtitle">Stay on top of your academic workload and problem sets.</p>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openAddTaskModal()">+ NEW TASK</button>
+          </div>
+
+          <div class="task-filter-bar">
+            <button class="btn btn-sm btn-secondary active" id="filterAll" onclick="filterTasks('ALL')">All</button>
+            <button class="btn btn-sm btn-secondary" id="filterToday" onclick="filterTasks('TODAY')">Today</button>
+            <button class="btn btn-sm btn-secondary" id="filterHigh" onclick="filterTasks('HIGH')">High Priority</button>
+            <button class="btn btn-sm btn-secondary" id="filterDone" onclick="filterTasks('COMPLETED')">Completed</button>
+          </div>
+
+          <div class="task-list" id="taskContainer">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 5: FOCUS TIMER
+             =============================================================== -->
+        <section class="page" id="page-focus">
+          <div class="page-header">
+            <h1 class="page-title">Focus Session</h1>
+            <p class="page-subtitle">Deep work timer with real-time hardware synchronization.</p>
+          </div>
+
+          <div class="focus-wrapper">
+            <div class="timer-ring-container">
+              <svg class="timer-svg" viewBox="0 0 280 280">
+                <circle class="timer-bg-circle" cx="140" cy="140" r="130" />
+                <circle class="timer-progress-circle" id="timerProgressCircle" cx="140" cy="140" r="130" />
+              </svg>
+              <div class="timer-text-wrap">
+                <div class="timer-display" id="timerDigits">45:00</div>
+                <div class="timer-subject-tag" id="timerSubjectText">PHYSICS</div>
+                <div class="timer-topic-tag" id="timerTopicText">Electrostatics & Gauss's Law</div>
+              </div>
+            </div>
+
+            <!-- Presets -->
+            <div class="preset-row">
+              <button class="preset-btn" onclick="setTimerPreset(25)">25 MIN</button>
+              <button class="preset-btn active" onclick="setTimerPreset(45)">45 MIN</button>
+              <button class="preset-btn" onclick="setTimerPreset(60)">60 MIN</button>
+            </div>
+
+            <!-- Controls -->
+            <div class="timer-controls">
+              <button class="btn btn-primary" id="timerStartBtn" onclick="toggleTimer()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span id="timerBtnLabel">START</span>
+              </button>
+              <button class="btn btn-secondary" onclick="resetTimer()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                <span>RESET</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 6: QUIZ
+             =============================================================== -->
+        <section class="page" id="page-quiz">
+          <div class="page-header">
+            <h1 class="page-title">Active Recall Quiz</h1>
+            <p class="page-subtitle">Concept diagnostics and retention testing.</p>
+          </div>
+
+          <div class="quiz-container">
+            <div class="quiz-card" id="quizActiveView">
+              <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">
+                <span id="quizSubjectTag">PHYSICS QUIZ</span>
+                <span id="quizCounterText">QUESTION 1 / 10</span>
+              </div>
+
+              <div class="quiz-progress-bar">
+                <div class="quiz-progress-fill" id="quizProgressBar"></div>
+              </div>
+
+              <div class="quiz-question-text" id="quizQuestionText">
+                Which law relates the net electric flux through a closed surface to the total enclosed charge?
+              </div>
+
+              <div class="quiz-options" id="quizOptionsContainer">
+                <!-- Rendered dynamically via JS -->
+              </div>
+            </div>
+
+            <!-- Quiz Complete Screen -->
+            <div class="quiz-card" id="quizCompleteView" style="display: none; text-align: center; padding: 40px 20px;">
+              <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(16,185,129,0.2); border: 2px solid var(--accent-emerald); color: var(--accent-emerald); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <h2 style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800;">QUIZ COMPLETE</h2>
+              <p style="color: var(--text-secondary); margin-top: 4px;">Physics — Electrostatics & Calculus Review</p>
+              
+              <div style="display: flex; justify-content: center; gap: 30px; margin: 30px 0;">
+                <div>
+                  <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">SCORE</div>
+                  <div style="font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; color: var(--accent-cyan);" id="quizScoreText">8 / 10</div>
+                </div>
+                <div>
+                  <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">ACCURACY</div>
+                  <div style="font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; color: var(--accent-emerald);" id="quizAccuracyText">80%</div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" onclick="restartQuiz()">RETAKE QUIZ</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 7: NOTES
+             =============================================================== -->
+        <section class="page" id="page-notes">
+          <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <h1 class="page-title">Study Notes</h1>
+              <p class="page-subtitle">Markdown repository and formula reference sheets.</p>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="createNewNote()">+ NEW NOTE</button>
+          </div>
+
+          <div class="notes-layout">
+            <div class="notes-list" id="notesList">
+              <!-- Rendered dynamically via JS -->
+            </div>
+
+            <div class="note-editor">
+              <input type="text" class="note-title-input" id="noteTitleInput" value="Electrostatics — Gauss's Law" />
+              <textarea class="note-content-area" id="noteContentInput" placeholder="Write your markdown study notes here..."></textarea>
+              <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-secondary btn-sm" onclick="deleteCurrentNote()">Delete</button>
+                <button class="btn btn-primary btn-sm" onclick="saveCurrentNote()">SAVE NOTE</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 8: PROGRESS & ANALYTICS
+             =============================================================== -->
+        <section class="page" id="page-progress">
+          <div class="page-header">
+            <h1 class="page-title">Study Analytics</h1>
+            <p class="page-subtitle">Visual performance metrics and revision targets.</p>
+          </div>
+
+          <!-- Weekly Hours Chart -->
+          <div class="card progress-chart-card">
+            <h3 style="font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 4px;">Weekly Study Time</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">Total this week: <strong>31 Hours</strong> (Daily average: 4.4h)</p>
+            <div class="bar-chart-container">
+              <div class="bar-col">
+                <div class="bar-pill" style="height: 42%;"><span class="bar-val">3h</span></div>
+                <span class="bar-day">MON</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-pill" style="height: 70%;"><span class="bar-val">5h</span></div>
+                <span class="bar-day">TUE</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-pill" style="height: 56%;"><span class="bar-val">4h</span></div>
+                <span class="bar-day">WED</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-pill" style="height: 84%;"><span class="bar-val">6h</span></div>
+                <span class="bar-day">THU</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-pill" style="height: 28%;"><span class="bar-val">2h</span></div>
+                <span class="bar-day">FRI</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-pill" style="height: 98%;"><span class="bar-val">7h</span></div>
+                <span class="bar-day">SAT</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-pill" style="height: 56%;"><span class="bar-val">4h</span></div>
+                <span class="bar-day">SUN</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subject Mastery -->
+          <h3 style="font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 14px;">Subject Mastery</h3>
+          <div class="subject-accuracy-grid">
+            <div class="card" style="padding: 18px;">
+              <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">PHYSICS</div>
+              <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: var(--accent-cyan); margin: 6px 0;">78%</div>
+              <div class="badge badge-amber">Needs Focus</div>
+            </div>
+            <div class="card" style="padding: 18px;">
+              <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">MATHEMATICS</div>
+              <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: var(--accent-emerald); margin: 6px 0;">86%</div>
+              <div class="badge badge-emerald">On Track</div>
+            </div>
+            <div class="card" style="padding: 18px;">
+              <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">CHEMISTRY</div>
+              <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: var(--accent-amber); margin: 6px 0;">65%</div>
+              <div class="badge badge-rose">Attention</div>
+            </div>
+            <div class="card" style="padding: 18px;">
+              <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">COMPUTER SCIENCE</div>
+              <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: var(--accent-cyan); margin: 6px 0;">91%</div>
+              <div class="badge badge-emerald">Mastered</div>
+            </div>
+          </div>
+
+          <!-- Strong & Weak Breakdown -->
+          <div class="dashboard-split">
+            <div class="card">
+              <h4 style="font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--accent-emerald); margin-bottom: 12px;">Strong Areas</h4>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: #cbd5e1;">
+                <li>✓ Differential Calculus & Derivatives (92%)</li>
+                <li>✓ Binary Search Trees & AVL Balancing (95%)</li>
+                <li>✓ Classical Mechanics & Kinematics (88%)</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h4 style="font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--accent-rose); margin-bottom: 12px;">Recommended Revision</h4>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: #cbd5e1;">
+                <li>⚠️ Gauss's Law & Electric Flux (68% - Exam in 6d)</li>
+                <li>⚠️ Organic Reaction Mechanisms (61%)</li>
+                <li>⚠️ Integration by Parts (74%)</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===============================================================
+             PAGE 9: SETTINGS
+             =============================================================== -->
+        <section class="page" id="page-settings">
+          <div class="page-header">
+            <h1 class="page-title">System Settings</h1>
+            <p class="page-subtitle">Personalize your study assistant profile and device telemetry.</p>
+          </div>
+
+          <div class="card" style="max-width: 600px;">
+            <div style="display: flex; flex-direction: column; gap: 18px;">
+              <div>
+                <label style="display: block; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px;">STUDENT NAME</label>
+                <input type="text" id="settingNameInput" class="chat-input" value="Alex Henderson" />
+              </div>
+
+              <div>
+                <label style="display: block; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px;">DAILY FOCUS GOAL (MINUTES)</label>
+                <input type="number" id="settingGoalInput" class="chat-input" value="270" />
+              </div>
+
+              <div>
+                <label style="display: block; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px;">AI ASSISTANT PERSONALITY</label>
+                <select class="chat-input" id="settingPersonality">
+                  <option value="calm">Calm & Academic (Default)</option>
+                  <option value="rigorous">Rigorous & Direct</option>
+                  <option value="supportive">Motivational & Supportive</option>
+                </select>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
+                <button class="btn btn-secondary btn-sm" onclick="resetAllDemoData()">Restore Demo Defaults</button>
+                <button class="btn btn-primary" onclick="saveSettings()">SAVE SETTINGS</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- =====================================================================
+         3. RIGHT-SIDE HARDWARE SIMULATOR (OLED & 3 LEDs)
+         ===================================================================== -->
+    <aside class="hardware-sidebar" id="hardwareSidebar">
+      <div class="hw-header">
+        <span class="hw-title">JARVIS HARDWARE</span>
+        <span class="badge badge-cyan" id="hwStatePill">READY</span>
+      </div>
+
+      <!-- Desktop Electronics Chassis -->
+      <div class="hw-chassis">
+        <!-- 128x64 Monochrome OLED Display Screen -->
+        <div class="oled-screen-frame" id="oledScreen">
+          <div class="oled-line-1" id="oledLine1">JARVIS AI</div>
+          <div class="oled-line-2" id="oledLine2">READY</div>
+          <div class="oled-line-3" id="oledLine3">STANDBY 100%</div>
+        </div>
+
+        <!-- 3 LEDs -->
+        <div class="led-bank">
+          <div class="led-unit">
+            <div class="led-socket">
+              <div class="led-diode led-red active" id="ledRed"></div>
+            </div>
+            <span class="led-label">SYS (D25)</span>
+          </div>
+
+          <div class="led-unit">
+            <div class="led-socket">
+              <div class="led-diode led-yellow" id="ledYellow"></div>
+            </div>
+            <span class="led-label">THINK (D26)</span>
+          </div>
+
+          <div class="led-unit">
+            <div class="led-socket">
+              <div class="led-diode led-green" id="ledGreen"></div>
+            </div>
+            <span class="led-label">STUDY (D27)</span>
+          </div>
+        </div>
+
+        <!-- Hardware Test Controls -->
+        <div class="hw-controls">
+          <button class="hw-btn" onclick="testHardwareState('IDLE')">RST / IDLE</button>
+          <button class="hw-btn" onclick="testHardwareState('THINKING')">TEST AI</button>
+          <button class="hw-btn" onclick="testHardwareState('STUDYING')">STUDY 25M</button>
+          <button class="hw-btn" onclick="testHardwareState('ERROR')">TEST ERR</button>
+        </div>
+      </div>
+
+      <!-- Telemetry Info -->
+      <div class="card" style="padding: 16px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary);">
+        <div style="color: var(--accent-cyan); font-weight: 700; margin-bottom: 8px;">I2C BUS TELEMETRY</div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span>Display:</span> <strong style="color: #cbd5e1;">SSD1306 128x64</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span>Address:</span> <strong style="color: #cbd5e1;">0x3C (I2C)</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span>SDA/SCL:</span> <strong style="color: #cbd5e1;">GPIO 21 / 22</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span>Refresh:</span> <strong style="color: var(--accent-emerald);">60 FPS SYNC</strong>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- =====================================================================
+       4. VANILLA JAVASCRIPT APPLICATION CORE
+       ===================================================================== -->
+  <script>
+    /* =======================================================================
+       A. DEFAULT MOCK DATA & LOCALSTORAGE REPOSITORY
+       ======================================================================= */
+    const DEFAULT_DATA = {
+      user: {
+        name: 'Alex Henderson',
+        dailyGoalMinutes: 270,
+        personality: 'calm'
+      },
+      schedule: [
+        { id: 'sch-1', time: '09:00', title: 'Calculus Review', subject: 'Mathematics', topic: 'Derivatives & Limits', duration: 45, status: 'COMPLETED' },
+        { id: 'sch-2', time: '10:30', title: 'Electrostatics Deep Dive', subject: 'Physics', topic: 'Gauss\'s Law & Flux', duration: 45, status: 'NEXT' },
+        { id: 'sch-3', time: '14:00', title: 'Organic Chemistry Prep', subject: 'Chemistry', topic: 'Electrophilic Addition', duration: 50, status: 'UPCOMING' },
+        { id: 'sch-4', time: '17:00', title: 'Physics Midterm Recall', subject: 'Physics', topic: 'Coulomb & Electric Potential', duration: 40, status: 'UPCOMING' }
+      ],
+      tasks: [
+        { id: 'tsk-1', title: 'Complete Electrostatics notes & formula sheet', subject: 'Physics', due: 'Today', priority: 'HIGH', completed: true },
+        { id: 'tsk-2', title: 'Finish Calculus derivative problem set #4', subject: 'Mathematics', due: 'Tomorrow', priority: 'MEDIUM', completed: false },
+        { id: 'tsk-3', title: 'Review Organic Reaction mechanisms flowchart', subject: 'Chemistry', due: 'In 2 days', priority: 'LOW', completed: false },
+        { id: 'tsk-4', title: 'Implement AVL Tree rebalancing proof', subject: 'Computer Science', due: 'Today', priority: 'HIGH', completed: true }
+      ],
+      notes: [
+        {
+          id: 'note-1',
+          title: 'Electrostatics — Gauss\'s Law',
+          subject: 'Physics',
+          content: "# Gauss's Law in Electrostatics\n\n$$\\oint \\vec{E} \\cdot d\\vec{A} = \\frac{Q_{\\text{enc}}}{\\varepsilon_0}$$\n\n### Key Concepts:\n1. Electric flux through any closed surface is proportional to enclosed charge.\n2. Spherical symmetry: $E = \\frac{1}{4\\pi\\varepsilon_0}\\frac{q}{r^2}$\n3. Cylindrical symmetry: $E = \\frac{\\lambda}{2\\pi\\varepsilon_0 r}$\n4. Planar symmetry: $E = \\frac{\\sigma}{2\\varepsilon_0}$"
+        },
+        {
+          id: 'note-2',
+          title: 'Calculus — Fundamental Theorem',
+          subject: 'Mathematics',
+          content: "# Fundamental Theorem of Calculus\n\nIf $f$ is continuous on $[a, b]$, then:\n\n$$\\frac{d}{dx}\\left[\\int_{a}^{x} f(t) dt\\right] = f(x)$$\n\nAnd:\n$$\\int_{a}^{b} f(x) dx = F(b) - F(a)$$"
+        }
+      ],
+      quiz: [
+        {
+          question: "Which law relates the net electric flux through a closed surface to the total enclosed charge?",
+          options: ["Newton's Law of Universal Gravitation", "Gauss's Law", "Ohm's Law", "Faraday's Law of Induction"],
+          correct: 1
+        },
+        {
+          question: "What is the electric field inside a charged hollow conductor in electrostatic equilibrium?",
+          options: ["Infinite", "Zero", "Proportional to radius", "Proportional to surface area"],
+          correct: 1
+        },
+        {
+          question: "What is the SI unit of electric flux?",
+          options: ["Newton per Coulomb (N/C)", "Volt-meter (V·m)", "Tesla (T)", "Joule (J)"],
+          correct: 1
+        },
+        {
+          question: "In calculus, what is the derivative of f(x) = ln(x)?",
+          options: ["e^x", "1/x", "x", "x ln(x)"],
+          correct: 1
+        },
+        {
+          question: "What is the time complexity of searching an item in a balanced AVL Tree?",
+          options: ["O(1)", "O(n)", "O(log n)", "O(n^2)"],
+          correct: 2
+        }
+      ]
+    };
+
+    // Load or initialize state
+    const AppState = {
+      currentPage: 'dashboard',
+      data: JSON.parse(localStorage.getItem('jarvis_data')) || DEFAULT_DATA,
+      timer: {
+        remainingSeconds: 45 * 60,
+        totalSeconds: 45 * 60,
+        isRunning: false,
+        intervalId: null,
+        subject: 'Physics',
+        topic: 'Electrostatics'
+      },
+      quizState: {
+        currentIndex: 0,
+        score: 0,
+        answered: false
+      },
+      activeNoteId: 'note-1',
+      hardwareState: 'IDLE' // IDLE | THINKING | STUDYING | PAUSED | COMPLETED | ERROR
+    };
+
+    function persistData() {
+      localStorage.setItem('jarvis_data', JSON.stringify(AppState.data));
+    }
+
+    /* =======================================================================
+       B. TOAST NOTIFICATIONS & REAL-TIME CLOCK
+       ======================================================================= */
+    function showToast(message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span>${message}</span>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function initClock() {
+      const dateEl = document.getElementById('dateDisplay');
+      const timeEl = document.getElementById('timeDisplay');
+      const update = () => {
+        const now = new Date();
+        if (dateEl) dateEl.innerText = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+        if (timeEl) timeEl.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      };
+      update();
+      setInterval(update, 1000);
+    }
+
+    /* =======================================================================
+       C. HARDWARE SIMULATOR STATE MACHINE (128x64 OLED & 3 LEDs)
+       ======================================================================= */
+    function setHardwareState(state, extra = {}) {
+      AppState.hardwareState = state;
+      const oledLine1 = document.getElementById('oledLine1');
+      const oledLine2 = document.getElementById('oledLine2');
+      const oledLine3 = document.getElementById('oledLine3');
+      const hwStatePill = document.getElementById('hwStatePill');
+      const sysStatusText = document.getElementById('sysStatusText');
+      const redLed = document.getElementById('ledRed');
+      const yellowLed = document.getElementById('ledYellow');
+      const greenLed = document.getElementById('ledGreen');
+
+      // Reset all LEDs
+      redLed.classList.remove('active');
+      yellowLed.classList.remove('active');
+      greenLed.classList.remove('active');
+
+      switch (state) {
+        case 'IDLE':
+          oledLine1.innerText = 'JARVIS';
+          oledLine2.innerText = 'READY';
+          oledLine3.innerText = 'STANDBY 100%';
+          redLed.classList.add('active');
+          hwStatePill.innerText = 'READY';
+          hwStatePill.className = 'badge badge-cyan';
+          sysStatusText.innerText = 'JARVIS ONLINE';
+          break;
+
+        case 'THINKING':
+          oledLine1.innerText = 'JARVIS';
+          oledLine2.innerText = 'THINKING...';
+          oledLine3.innerText = 'NEURAL COGNITION';
+          yellowLed.classList.add('active');
+          hwStatePill.innerText = 'THINKING';
+          hwStatePill.className = 'badge badge-amber';
+          sysStatusText.innerText = 'AI THINKING';
+          break;
+
+        case 'STUDYING':
+          const mins = Math.floor((extra.remaining || AppState.timer.remainingSeconds) / 60).toString().padStart(2, '0');
+          const secs = ((extra.remaining || AppState.timer.remainingSeconds) % 60).toString().padStart(2, '0');
+          oledLine1.innerText = 'STUDY MODE';
+          oledLine2.innerText = (extra.subject || AppState.timer.subject).toUpperCase();
+          oledLine3.innerText = `${mins}:${secs} FOCUS`;
+          greenLed.classList.add('active');
+          hwStatePill.innerText = 'STUDYING';
+          hwStatePill.className = 'badge badge-emerald';
+          sysStatusText.innerText = 'STUDY ACTIVE';
+          break;
+
+        case 'PAUSED':
+          oledLine1.innerText = 'SESSION';
+          oledLine2.innerText = 'PAUSED';
+          oledLine3.innerText = 'STANDBY';
+          yellowLed.classList.add('active');
+          hwStatePill.innerText = 'PAUSED';
+          hwStatePill.className = 'badge badge-amber';
+          sysStatusText.innerText = 'STUDY PAUSED';
+          break;
+
+        case 'COMPLETED':
+          oledLine1.innerText = 'SESSION';
+          oledLine2.innerText = 'COMPLETE';
+          oledLine3.innerText = '+45 MIN LOGGED';
+          redLed.classList.add('active');
+          greenLed.classList.add('active');
+          hwStatePill.innerText = 'COMPLETE';
+          hwStatePill.className = 'badge badge-cyan';
+          sysStatusText.innerText = 'COMPLETED';
+          break;
+
+        case 'ERROR':
+          oledLine1.innerText = 'SYSTEM';
+          oledLine2.innerText = 'ERROR';
+          oledLine3.innerText = 'CHECK TELEMETRY';
+          redLed.classList.add('active');
+          hwStatePill.innerText = 'ERROR';
+          hwStatePill.className = 'badge badge-rose';
+          sysStatusText.innerText = 'SYSTEM ALERT';
+          break;
+      }
+    }
+
+    function testHardwareState(st) {
+      setHardwareState(st);
+      showToast(`Hardware switched to ${st} state.`);
+    }
+
+    /* =======================================================================
+       D. NAVIGATION & ROUTING
+       ======================================================================= */
+    function navigateTo(pageId) {
+      AppState.currentPage = pageId;
+
+      // Update Nav pills
+      document.querySelectorAll('.nav-item').forEach(el => {
+        if (el.dataset.page === pageId) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+
+      // Update Page views
+      document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+      const targetPage = document.getElementById(`page-${pageId}`);
+      if (targetPage) targetPage.classList.add('active');
+
+      // Close mobile drawer if open
+      document.getElementById('sidebar').classList.remove('mobile-open');
+
+      // Re-render target views
+      if (pageId === 'dashboard') renderDashboard();
+      if (pageId === 'timetable') renderTimetable();
+      if (pageId === 'tasks') renderTasks();
+      if (pageId === 'notes') renderNotesList();
+    }
+
+    /* =======================================================================
+       E. DASHBOARD VIEW CONTROLLER
+       ======================================================================= */
+    function renderDashboard() {
+      // 1. Timeline list
+      const tl = document.getElementById('dashTimeline');
+      if (tl) {
+        tl.innerHTML = AppState.data.schedule.slice(0, 4).map(item => `
+          <div class="timeline-item ${item.status === 'NEXT' ? 'active-slot' : ''}">
+            <div class="timeline-time">${item.time}</div>
+            <div class="timeline-info">
+              <div class="timeline-subject">${item.subject}</div>
+              <div class="timeline-topic">${item.topic}</div>
+            </div>
+            <span class="badge ${item.status === 'COMPLETED' ? 'badge-emerald' : item.status === 'NEXT' ? 'badge-cyan' : 'badge-amber'}">${item.status}</span>
+          </div>
+        `).join('');
+      }
+
+      // 2. Mini tasks
+      const mt = document.getElementById('dashMiniTasks');
+      if (mt) {
+        mt.innerHTML = AppState.data.tasks.slice(0, 3).map(task => `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; font-size: 0.8rem;">
+            <span style="color: ${task.completed ? 'var(--text-muted)' : 'var(--text-primary)'}; ${task.completed ? 'text-decoration: line-through;' : ''}">${task.title}</span>
+            <span class="badge ${task.priority === 'HIGH' ? 'badge-rose' : 'badge-cyan'}">${task.priority}</span>
+          </div>
+        `).join('');
+      }
+
+      // 3. Stats
+      const doneCount = AppState.data.tasks.filter(t => t.completed).length;
+      document.getElementById('dashTaskCount').innerText = `${doneCount} / ${AppState.data.tasks.length}`;
+    }
+
+    function startFocusFromDashboard(subject, topic, mins) {
+      AppState.timer.subject = subject;
+      AppState.timer.topic = topic;
+      setTimerPreset(mins);
+      navigateTo('focus');
+      toggleTimer();
+      showToast(`Study session started: ${subject} (${mins} min)`);
+    }
+
+    /* =======================================================================
+       F. AI CHAT ENGINE (NATURAL LANGUAGE & INTENT MATCHING)
+       ======================================================================= */
+    function handleChatSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendChatMessage('user', text);
+      input.value = '';
+
+      // Trigger AI thinking state
+      setHardwareState('THINKING');
+      showTypingIndicator();
+
+      setTimeout(() => {
+        removeTypingIndicator();
+        const response = generateAIResponse(text);
+        appendChatMessage('jarvis', response);
+        setHardwareState('IDLE');
+      }, 1200);
+    }
+
+    function sendQuickPrompt(txt) {
+      const input = document.getElementById('chatInput');
+      input.value = txt;
+      document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+    }
+
+    function appendChatMessage(sender, text) {
+      const container = document.getElementById('chatMessages');
+      const msg = document.createElement('div');
+      msg.className = `message ${sender}`;
+      msg.innerHTML = `
+        <div class="msg-avatar">${sender === 'jarvis' ? 'J' : 'AH'}</div>
+        <div class="msg-bubble">${text}</div>
+      `;
+      container.appendChild(msg);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+      const container = document.getElementById('chatMessages');
+      const typing = document.createElement('div');
+      typing.className = 'message jarvis';
+      typing.id = 'typingIndicator';
+      typing.innerHTML = `
+        <div class="msg-avatar">J</div>
+        <div class="typing-indicator">
+          <span>JARVIS IS THINKING</span>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      `;
+      container.appendChild(typing);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+      const el = document.getElementById('typingIndicator');
+      if (el) el.remove();
+    }
+
+    function generateAIResponse(query) {
+      const q = query.toLowerCase();
+
+      if (q.includes('what should i study') || q.includes('what next') || q.includes('recommend')) {
+        return "Based on your timetable and upcoming Physics Midterm in 6 days, you should study <strong>Physics: Electrostatics</strong>. Focus specifically on <em>Gauss's Law boundary integrals</em>.";
+      }
+      if (q.includes('schedule') || q.includes('timetable') || q.includes('today')) {
+        return "Here is your plan for today:<br>• <strong>09:00 AM</strong>: Mathematics (Calculus) [Done]<br>• <strong>10:30 AM</strong>: Physics (Electrostatics) [Next]<br>• <strong>02:00 PM</strong>: Chemistry (Organic)<br>• <strong>05:00 PM</strong>: Physics Revision.";
+      }
+      if (q.includes('start focus') || q.includes('start study') || q.includes('timer')) {
+        setTimeout(() => {
+          navigateTo('focus');
+          toggleTimer();
+        }, 1000);
+        return "Initiating 45-minute focus session on <strong>Physics — Electrostatics</strong> now. Good luck!";
+      }
+      if (q.includes('quiz')) {
+        setTimeout(() => navigateTo('quiz'), 1000);
+        return "Opening your active recall diagnostic quiz. Let's test your conceptual retention.";
+      }
+      if (q.includes('progress') || q.includes('how am i doing')) {
+        return "You have logged <strong>3h 42m</strong> of focus time today (72% of your goal). Your highest subject accuracy is <strong>Computer Science (91%)</strong>, followed by <strong>Math (86%)</strong>.";
+      }
+      if (q.includes('newton') || q.includes('gauss') || q.includes('calculus') || q.includes('explain')) {
+        return "<strong>Gauss's Law</strong> states that the total electric flux $\\Phi_E$ through any closed surface equals the total enclosed charge divided by $\\varepsilon_0$. It is most effective when the charge distribution possesses spherical, cylindrical, or planar symmetry.";
+      }
+
+      return "I have noted that. Your study timeline is optimized. Would you like me to launch your next focus block or generate a practice quiz?";
+    }
+
+    function clearChat() {
+      document.getElementById('chatMessages').innerHTML = `
+        <div class="message jarvis">
+          <div class="msg-avatar">J</div>
+          <div class="msg-bubble">Chat history cleared. JARVIS standing by.</div>
+        </div>
+      `;
+      showToast('Chat history cleared.');
+    }
+
+    /* =======================================================================
+       G. TIMETABLE CONTROLLER
+       ======================================================================= */
+    function renderTimetable() {
+      const container = document.getElementById('timetableList');
+      if (!container) return;
+
+      container.innerHTML = AppState.data.schedule.map((item, idx) => `
+        <div class="timetable-card">
+          <div class="tt-left">
+            <div class="tt-time">${item.time}</div>
+            <div>
+              <div class="tt-subject">${item.subject}</div>
+              <div class="tt-topic">${item.topic}</div>
+            </div>
+          </div>
+          <div class="tt-actions">
+            <span class="tt-duration">${item.duration} min</span>
+            <span class="badge ${item.status === 'COMPLETED' ? 'badge-emerald' : item.status === 'NEXT' ? 'badge-cyan' : 'badge-amber'}">${item.status}</span>
+            <button class="btn btn-sm btn-secondary" onclick="deleteSession(${idx})">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function setTimetableView(view) {
+      document.getElementById('viewDayBtn').classList.toggle('active', view === 'DAY');
+      document.getElementById('viewWeekBtn').classList.toggle('active', view === 'WEEK');
+      showToast(`Switched timetable to ${view} view.`);
+    }
+
+    function openAddSessionModal() {
+      const subject = prompt('Enter Subject (e.g. Physics, Math):', 'Physics');
+      if (!subject) return;
+      const topic = prompt('Enter Topic (e.g. Thermodynamics):', 'Thermodynamics');
+      if (!topic) return;
+      const time = prompt('Enter Time (e.g. 15:30):', '15:30');
+      if (!time) return;
+
+      AppState.data.schedule.push({
+        id: 'sch-' + Date.now(),
+        time,
+        subject,
+        topic,
+        duration: 45,
+        status: 'UPCOMING'
+      });
+      persistData();
+      renderTimetable();
+      renderDashboard();
+      showToast('Study session added to schedule.');
+    }
+
+    function deleteSession(idx) {
+      AppState.data.schedule.splice(idx, 1);
+      persistData();
+      renderTimetable();
+      renderDashboard();
+      showToast('Session removed from timetable.');
+    }
+
+    /* =======================================================================
+       H. TASKS CONTROLLER
+       ======================================================================= */
+    let currentTaskFilter = 'ALL';
+
+    function filterTasks(f) {
+      currentTaskFilter = f;
+      document.querySelectorAll('.task-filter-bar button').forEach(b => b.classList.remove('active'));
+      document.getElementById(`filter${f.charAt(0) + f.slice(1).toLowerCase()}`)?.classList.add('active');
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('taskContainer');
+      if (!container) return;
+
+      let filtered = AppState.data.tasks;
+      if (currentTaskFilter === 'TODAY') filtered = filtered.filter(t => t.due === 'Today');
+      if (currentTaskFilter === 'HIGH') filtered = filtered.filter(t => t.priority === 'HIGH');
+      if (currentTaskFilter === 'COMPLETED') filtered = filtered.filter(t => t.completed);
+
+      container.innerHTML = filtered.map((task) => `
+        <div class="task-item ${task.completed ? 'completed' : ''}">
+          <div class="task-left">
+            <div class="custom-checkbox" onclick="toggleTask('${task.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div>
+              <div class="task-title">${task.title}</div>
+              <div class="task-meta">
+                <span>📚 ${task.subject}</span>
+                <span>•</span>
+                <span>📅 ${task.due}</span>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="badge ${task.priority === 'HIGH' ? 'badge-rose' : task.priority === 'MEDIUM' ? 'badge-amber' : 'badge-cyan'}">${task.priority}</span>
+            <button class="btn btn-sm btn-secondary" onclick="deleteTask('${task.id}')">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleTask(id) {
+      const task = AppState.data.tasks.find(t => t.id === id);
+      if (task) {
+        task.completed = !task.completed;
+        persistData();
+        renderTasks();
+        renderDashboard();
+        showToast(task.completed ? 'Task marked complete!' : 'Task reopened.');
+      }
+    }
+
+    function deleteTask(id) {
+      AppState.data.tasks = AppState.data.tasks.filter(t => t.id !== id);
+      persistData();
+      renderTasks();
+      renderDashboard();
+      showToast('Task deleted.');
+    }
+
+    function openAddTaskModal() {
+      const title = prompt('Enter Task Title:', 'Solve Calculus practice worksheet');
+      if (!title) return;
+      const subject = prompt('Subject:', 'Mathematics');
+      const priority = prompt('Priority (HIGH, MEDIUM, LOW):', 'HIGH').toUpperCase();
+
+      AppState.data.tasks.unshift({
+        id: 'tsk-' + Date.now(),
+        title,
+        subject: subject || 'General',
+        due: 'Today',
+        priority: priority || 'MEDIUM',
+        completed: false
+      });
+      persistData();
+      renderTasks();
+      renderDashboard();
+      showToast('New study task created.');
+    }
+
+    /* =======================================================================
+       I. FOCUS TIMER CONTROLLER
+       ======================================================================= */
+    function setTimerPreset(minutes) {
+      if (AppState.timer.isRunning) resetTimer();
+      AppState.timer.totalSeconds = minutes * 60;
+      AppState.timer.remainingSeconds = minutes * 60;
+      updateTimerDisplay();
+
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        b.classList.toggle('active', parseInt(b.innerText) === minutes);
+      });
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(AppState.timer.remainingSeconds / 60).toString().padStart(2, '0');
+      const secs = (AppState.timer.remainingSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('timerDigits').innerText = `${mins}:${secs}`;
+      document.getElementById('timerSubjectText').innerText = AppState.timer.subject.toUpperCase();
+      document.getElementById('timerTopicText').innerText = AppState.timer.topic;
+
+      // Update circular SVG dashoffset
+      const circle = document.getElementById('timerProgressCircle');
+      if (circle) {
+        const totalOffset = 816; // 2 * PI * 130
+        const progressRatio = AppState.timer.remainingSeconds / AppState.timer.totalSeconds;
+        circle.style.strokeDashoffset = (totalOffset * (1 - progressRatio));
+      }
+
+      // Sync OLED if studying
+      if (AppState.timer.isRunning) {
+        setHardwareState('STUDYING', { remaining: AppState.timer.remainingSeconds });
+      }
+    }
+
+    function toggleTimer() {
+      if (AppState.timer.isRunning) {
+        // Pause
+        clearInterval(AppState.timer.intervalId);
+        AppState.timer.isRunning = false;
+        document.getElementById('timerBtnLabel').innerText = 'RESUME';
+        setHardwareState('PAUSED');
+        showToast('Focus session paused.');
+      } else {
+        // Start
+        AppState.timer.isRunning = true;
+        document.getElementById('timerBtnLabel').innerText = 'PAUSE';
+        setHardwareState('STUDYING');
+        showToast('Study session active. OLED & Green LED synced.');
+
+        AppState.timer.intervalId = setInterval(() => {
+          if (AppState.timer.remainingSeconds > 0) {
+            AppState.timer.remainingSeconds--;
+            updateTimerDisplay();
+          } else {
+            // Session Finished!
+            clearInterval(AppState.timer.intervalId);
+            AppState.timer.isRunning = false;
+            document.getElementById('timerBtnLabel').innerText = 'START';
+            setHardwareState('COMPLETED');
+            showToast('🎉 Focus Session Completed! +45 mins logged.');
+          }
+        }, 1000);
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(AppState.timer.intervalId);
+      AppState.timer.isRunning = false;
+      AppState.timer.remainingSeconds = AppState.timer.totalSeconds;
+      document.getElementById('timerBtnLabel').innerText = 'START';
+      updateTimerDisplay();
+      setHardwareState('IDLE');
+      showToast('Timer reset to standby.');
+    }
+
+    /* =======================================================================
+       J. QUIZ CONTROLLER
+       ======================================================================= */
+    function renderQuizQuestion() {
+      const q = AppState.data.quiz[AppState.quizState.currentIndex];
+      document.getElementById('quizCounterText').innerText = `QUESTION ${AppState.quizState.currentIndex + 1} / ${AppState.data.quiz.length}`;
+      document.getElementById('quizProgressBar').style.width = `${((AppState.quizState.currentIndex + 1) / AppState.data.quiz.length) * 100}%`;
+      document.getElementById('quizQuestionText').innerText = q.question;
+
+      const optsContainer = document.getElementById('quizOptionsContainer');
+      optsContainer.innerHTML = q.options.map((opt, idx) => {
+        const letters = ['A', 'B', 'C', 'D'];
+        return `
+          <button class="quiz-option" onclick="handleQuizAnswer(${idx})">
+            <span class="option-key">${letters[idx]}</span>
+            <span>${opt}</span>
+          </button>
+        `;
+      }).join('');
+
+      AppState.quizState.answered = false;
+    }
+
+    function handleQuizAnswer(selectedIdx) {
+      if (AppState.quizState.answered) return;
+      AppState.quizState.answered = true;
+
+      const q = AppState.data.quiz[AppState.quizState.currentIndex];
+      const buttons = document.querySelectorAll('.quiz-option');
+
+      if (selectedIdx === q.correct) {
+        buttons[selectedIdx].classList.add('correct');
+        AppState.quizState.score++;
+        showToast('Correct Answer!');
+      } else {
+        buttons[selectedIdx].classList.add('incorrect');
+        buttons[q.correct].classList.add('correct');
+        showToast('Incorrect. Correct answer highlighted.');
+      }
+
+      setTimeout(() => {
+        if (AppState.quizState.currentIndex < AppState.data.quiz.length - 1) {
+          AppState.quizState.currentIndex++;
+          renderQuizQuestion();
+        } else {
+          // Quiz Complete
+          document.getElementById('quizActiveView').style.display = 'none';
+          document.getElementById('quizCompleteView').style.display = 'block';
+          document.getElementById('quizScoreText').innerText = `${AppState.quizState.score} / ${AppState.data.quiz.length}`;
+          document.getElementById('quizAccuracyText').innerText = `${Math.round((AppState.quizState.score / AppState.data.quiz.length) * 100)}%`;
+        }
+      }, 1200);
+    }
+
+    function restartQuiz() {
+      AppState.quizState.currentIndex = 0;
+      AppState.quizState.score = 0;
+      document.getElementById('quizActiveView').style.display = 'block';
+      document.getElementById('quizCompleteView').style.display = 'none';
+      renderQuizQuestion();
+    }
+
+    /* =======================================================================
+       K. NOTES CONTROLLER
+       ======================================================================= */
+    function renderNotesList() {
+      const container = document.getElementById('notesList');
+      if (!container) return;
+
+      container.innerHTML = AppState.data.notes.map(note => `
+        <div class="note-card-item ${note.id === AppState.activeNoteId ? 'active' : ''}" onclick="selectNote('${note.id}')">
+          <div class="note-item-title">${note.title}</div>
+          <div class="note-item-subject">${note.subject}</div>
+        </div>
+      `).join('');
+
+      // Load active note in editor
+      const active = AppState.data.notes.find(n => n.id === AppState.activeNoteId) || AppState.data.notes[0];
+      if (active) {
+        document.getElementById('noteTitleInput').value = active.title;
+        document.getElementById('noteContentInput').value = active.content;
+      }
+    }
+
+    function selectNote(id) {
+      AppState.activeNoteId = id;
+      renderNotesList();
+    }
+
+    function createNewNote() {
+      const newNote = {
+        id: 'note-' + Date.now(),
+        title: 'New Study Note',
+        subject: 'General',
+        content: '# New Topic Notes\n\n- Key concepts:\n- Formulas:\n- Problem summaries:'
+      };
+      AppState.data.notes.unshift(newNote);
+      AppState.activeNoteId = newNote.id;
+      persistData();
+      renderNotesList();
+      showToast('Created new note.');
+    }
+
+    function saveCurrentNote() {
+      const note = AppState.data.notes.find(n => n.id === AppState.activeNoteId);
+      if (note) {
+        note.title = document.getElementById('noteTitleInput').value;
+        note.content = document.getElementById('noteContentInput').value;
+        persistData();
+        renderNotesList();
+        showToast('Note saved to local storage.');
+      }
+    }
+
+    function deleteCurrentNote() {
+      if (AppState.data.notes.length <= 1) {
+        showToast('Cannot delete the last remaining note.');
+        return;
+      }
+      AppState.data.notes = AppState.data.notes.filter(n => n.id !== AppState.activeNoteId);
+      AppState.activeNoteId = AppState.data.notes[0].id;
+      persistData();
+      renderNotesList();
+      showToast('Note deleted.');
+    }
+
+    /* =======================================================================
+       L. SETTINGS & INITIALIZATION
+       ======================================================================= */
+    function saveSettings() {
+      const name = document.getElementById('settingNameInput').value;
+      const goal = parseInt(document.getElementById('settingGoalInput').value);
+      const personality = document.getElementById('settingPersonality').value;
+
+      AppState.data.user = { name, dailyGoalMinutes: goal, personality };
+      document.getElementById('userNameDisplay').innerText = name;
+      persistData();
+      showToast('Settings successfully updated.');
+    }
+
+    function resetAllDemoData() {
+      if (confirm('Reset all tasks, notes, and schedule to default demonstration data?')) {
+        localStorage.removeItem('jarvis_data');
+        AppState.data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+        persistData();
+        location.reload();
+      }
+    }
+
+    // Initialize listeners and setup
+    document.addEventListener('DOMContentLoaded', () => {
+      initClock();
+      setHardwareState('IDLE');
+      renderDashboard();
+      renderQuizQuestion();
+
+      // Sidebar nav click listeners
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const page = item.dataset.page;
+          if (page) navigateTo(page);
+        });
+      });
+
+      // Mobile toggles
+      document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('mobile-open');
+      });
+      document.getElementById('mobileHardwareToggle')?.addEventListener('click', () => {
+        document.getElementById('hardwareSidebar').classList.toggle('mobile-open');
+      });
+    });
+  </script>
+</body>
 </html>
