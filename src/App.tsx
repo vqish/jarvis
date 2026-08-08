@@ -4,6 +4,7 @@ import { Navbar } from './components/common/Navbar';
 import { Sidebar } from './components/common/Sidebar';
 import { HardwareSimulator } from './components/hardware/HardwareSimulator';
 import { DailyBriefingModal } from './components/briefing/DailyBriefingModal';
+import { AuthModal } from './components/auth/AuthModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { ChatDrawer } from './components/chat/ChatDrawer';
 import { TodayPlanPage } from './pages/TodayPlanPage';
@@ -89,6 +90,7 @@ export const App: React.FC = () => {
 
       {/* 4. Global Modals */}
       <DailyBriefingModal />
+      <AuthModal />
     </div>
   );
 };

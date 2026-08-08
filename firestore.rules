@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =========================================================================
+    // JARVIS FIRESTORE SECURITY RULES
+    // =========================================================================
+    // Rule: Users can strictly only read and write their OWN isolated documents
+    // and subcollections. Global unauthenticated access is strictly forbidden.
+    // =========================================================================
+
+    // User Profile Document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // User-Isolated Subcollections (tasks, schedule, notes, studySessions, subjects, exams, settings)
+      match /{subcollection}/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Deny all other unmatched paths by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

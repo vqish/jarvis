@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useJarvis } from '../../state/JarvisContext';
+import { useAuth } from '../../state/AuthContext';
 import { 
   Sparkles, 
   Cpu, 
@@ -9,20 +10,30 @@ import {
   Clock, 
   Calendar as CalendarIcon,
   Flame,
-  Bot
+  User,
+  LogOut,
+  LogIn,
+  ShieldCheck,
+  CloudOff
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { 
     systemState, 
-    hardwareState, 
     settings, 
     updateSettings, 
     toggleDailyBriefing, 
     toggleSimulatorDrawer,
     isSimulatorDrawerOpen,
-    activeTab
   } = useJarvis();
+
+  const {
+    user,
+    isAuthenticated,
+    isFirebaseReady,
+    logout,
+    openAuthModal,
+  } = useAuth();
 
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
@@ -75,7 +86,7 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Right: Status Pill, Hardware Toggle, Audio Briefing, Profile */}
+      {/* Right: Status Pill, Firebase indicator, Audio Briefing, User Auth */}
       <div className="flex items-center gap-3">
         {/* Jarvis System State Indicator */}
         <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono font-medium shadow-sm ${status.bg}`}>
@@ -83,11 +94,18 @@ export const Navbar: React.FC = () => {
           <span>{status.text}</span>
         </div>
 
-        {/* Hardware Status Pill */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-700/80 text-xs font-mono text-slate-300">
-          <Radio className="w-3 h-3 text-teal-400" />
-          <span>{settings.hardwareMode === 'SIMULATOR' ? 'OLED SIMULATOR' : 'ESP32 (WIFI)'}</span>
-        </div>
+        {/* Firebase Cloud Connection Status */}
+        {isFirebaseReady ? (
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-[11px] font-mono text-emerald-300">
+            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+            <span>FIREBASE READY</span>
+          </div>
+        ) : (
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700/80 text-[11px] font-mono text-slate-400">
+            <CloudOff className="w-3 h-3 text-slate-500" />
+            <span>LOCAL MODE</span>
+          </div>
+        )}
 
         {/* Daily Briefing Button */}
         <button
@@ -126,13 +144,35 @@ export const Navbar: React.FC = () => {
           <span className="hidden md:inline">Hardware</span>
         </button>
 
-        {/* User Profile Avatar */}
+        {/* User Authentication & Profile */}
         <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-teal-600 to-cyan-500 p-0.5 shadow-md">
-            <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center text-teal-300 font-bold text-xs">
-              AI
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-2">
+              <div className="text-right hidden sm:block">
+                <div className="text-xs font-semibold text-slate-200 line-clamp-1">
+                  {user.displayName || user.email.split('@')[0]}
+                </div>
+                <div className="text-[10px] font-mono text-teal-400">
+                  Authenticated
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-          </div>
+          ) : (
+            <button
+              onClick={() => openAuthModal('login')}
+              className="px-3 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-mono font-semibold flex items-center gap-1.5 transition-all active:scale-95"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>{isFirebaseReady ? 'Sign In' : 'Cloud Auth'}</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
