@@ -3,13 +3,13 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
 /**
- * Firebase Client Configuration
- * Loaded dynamically from Vite environment variables (VITE_FIREBASE_*).
- * 
- * IMPORTANT:
- * - Real secrets and service accounts MUST NOT be placed here.
- * - Credentials must be supplied via `.env.local`.
+ * Clean environment string values from accidental trailing spaces or surrounding quotes
  */
+const cleanEnv = (val?: string): string => {
+  if (!val) return '';
+  return val.trim().replace(/^["']|["']$/g, '');
+};
+
 export interface FirebaseConfig {
   apiKey: string;
   authDomain: string;
@@ -20,24 +20,58 @@ export interface FirebaseConfig {
 }
 
 export const firebaseConfig: FirebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: cleanEnv(import.meta.env.VITE_FIREBASE_API_KEY),
+  authDomain: cleanEnv(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  projectId: cleanEnv(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  storageBucket: cleanEnv(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: cleanEnv(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+  appId: cleanEnv(import.meta.env.VITE_FIREBASE_APP_ID),
 };
+
+export interface FirebaseDiagnostics {
+  apiKey: 'PRESENT' | 'MISSING';
+  authDomain: 'PRESENT' | 'MISSING';
+  projectId: 'PRESENT' | 'MISSING';
+  storageBucket: 'PRESENT' | 'MISSING';
+  messagingSenderId: 'PRESENT' | 'MISSING';
+  appId: 'PRESENT' | 'MISSING';
+  isComplete: boolean;
+  statusMessage: string;
+}
+
+/**
+ * Returns safe environment variable diagnostic states without ever revealing secret values.
+ */
+export function getFirebaseDiagnostics(): FirebaseDiagnostics {
+  const d = {
+    apiKey: (firebaseConfig.apiKey ? 'PRESENT' : 'MISSING') as 'PRESENT' | 'MISSING',
+    authDomain: (firebaseConfig.authDomain ? 'PRESENT' : 'MISSING') as 'PRESENT' | 'MISSING',
+    projectId: (firebaseConfig.projectId ? 'PRESENT' : 'MISSING') as 'PRESENT' | 'MISSING',
+    storageBucket: (firebaseConfig.storageBucket ? 'PRESENT' : 'MISSING') as 'PRESENT' | 'MISSING',
+    messagingSenderId: (firebaseConfig.messagingSenderId ? 'PRESENT' : 'MISSING') as 'PRESENT' | 'MISSING',
+    appId: (firebaseConfig.appId ? 'PRESENT' : 'MISSING') as 'PRESENT' | 'MISSING',
+  };
+
+  const isComplete =
+    d.apiKey === 'PRESENT' &&
+    d.authDomain === 'PRESENT' &&
+    d.projectId === 'PRESENT' &&
+    d.appId === 'PRESENT';
+
+  return {
+    ...d,
+    isComplete,
+    statusMessage: isComplete
+      ? 'Firebase configuration is complete.'
+      : 'Firebase configuration is incomplete. Check .env.local and restart the Vite server.',
+  };
+}
 
 /**
  * Validates whether all required Firebase credentials are present in the environment.
  */
 export function isFirebaseConfigured(): boolean {
-  return Boolean(
-    firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.appId
-  );
+  return getFirebaseDiagnostics().isComplete;
 }
 
 let app: FirebaseApp | null = null;
